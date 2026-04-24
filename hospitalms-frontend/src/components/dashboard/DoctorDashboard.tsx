@@ -12,6 +12,7 @@ const DoctorDashboard: React.FC = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [admissions, setAdmissions] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [doctorProfile, setDoctorProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [prescribeOpen, setPrescribeOpen] = useState(false);
@@ -44,16 +45,18 @@ const DoctorDashboard: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [apptRes, admRes, medRes, prescRes] = await Promise.all([
+      const [apptRes, admRes, medRes, prescRes, profileRes] = await Promise.all([
         appointmentApi.getByMyDoctor(),
         admissionApi.getAll(),
         medicineApi.getAll(),
-        prescriptionApi.getDoctorPrescriptions()
+        prescriptionApi.getDoctorPrescriptions(),
+        doctorApi.getMe()
       ]);
       setAppointments(apptRes.data);
       setAdmissions(admRes.data);
       setAvailableMeds(medRes.data);
       setPrescriptions(prescRes.data);
+      setDoctorProfile(profileRes.data);
     } catch (err: any) {
       console.error("Load failed", err);
       addToast({
@@ -152,7 +155,7 @@ const DoctorDashboard: React.FC = () => {
     try {
       await admissionApi.admit({
         patientId: parseInt(admitForm.patientId),
-        doctorId: user?.id, // This should be the doctor's internal ID from PatientService
+        doctorId: doctorProfile?.id, 
         wardType: admitForm.wardType,
         admissionReason: admitForm.admissionReason
       });
