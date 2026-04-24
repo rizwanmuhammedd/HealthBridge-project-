@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PageHeader, Card, EmptyState, Badge, LoadingSpinner, Button, statusBadge, Modal, Input, Select } from '../ui';
-import { Calendar, Receipt, Search } from 'lucide-react';
+import { Calendar, Receipt, Search, BedDouble } from 'lucide-react';
 import api, { appointmentApi, prescriptionApi, doctorApi } from '../../api/axiosInstance';
 import { useNotifications } from '../../context/NotificationContext';
 import { EnquiryChat } from '../chat/EnquiryChat';
 
 export const ReceptionistDashboard = () => {
     const { addToast } = useNotifications();
+    const location = useLocation();
     const [appointments, setAppointments] = useState<any[]>([]);
     const [bills, setBills] = useState<any[]>([]);
     const [prescriptions, setPrescriptions] = useState<any[]>([]);
@@ -68,15 +70,26 @@ export const ReceptionistDashboard = () => {
         const wards = [...new Set(beds.map(b => b.wardType))];
         
         return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-zinc-900 tracking-tight flex items-center gap-2">
-                        <BedDouble className="w-5 h-5 text-violet-500" /> Ward & Facility Monitoring
-                    </h2>
-                    <div className="flex gap-2">
-                        <Badge variant="success">{beds.filter(b => b.status === 'Available').length} Free</Badge>
-                        <Badge variant="danger">{beds.filter(b => b.status === 'Occupied').length} Occupied</Badge>
-                    </div>
+            <div className="space-y-8">
+                <PageHeader title="Facility & Ward Monitoring" subtitle="Track live bed occupancy and manage ward availability" />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <Card className="p-4 border-none shadow-sm bg-emerald-50">
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase">Available Beds</p>
+                        <p className="text-xl font-black text-emerald-700">{beds.filter(b => b.status === 'Available').length}</p>
+                    </Card>
+                    <Card className="p-4 border-none shadow-sm bg-red-50">
+                        <p className="text-[10px] font-bold text-red-600 uppercase">Occupied Beds</p>
+                        <p className="text-xl font-black text-red-700">{beds.filter(b => b.status === 'Occupied').length}</p>
+                    </Card>
+                    <Card className="p-4 border-none shadow-sm bg-orange-50">
+                        <p className="text-[10px] font-bold text-orange-600 uppercase">Under Cleaning</p>
+                        <p className="text-xl font-black text-orange-700">{beds.filter(b => b.status === 'UnderCleaning').length}</p>
+                    </Card>
+                    <Card className="p-4 border-none shadow-sm bg-zinc-50">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase">Total Capacity</p>
+                        <p className="text-xl font-black text-zinc-900">{beds.length}</p>
+                    </Card>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -155,7 +168,7 @@ export const ReceptionistDashboard = () => {
         } finally { setSubmitting(false); }
     };
 
-    const renderAppointments = () => {
+    const renderAppointments = (withHeader = false) => {
         const filtered = appointments.filter(a => 
             (a.patientName || '').toLowerCase().includes(apptSearchTerm.toLowerCase()) ||
             (a.doctorName || '').toLowerCase().includes(apptSearchTerm.toLowerCase()) ||
@@ -163,40 +176,43 @@ export const ReceptionistDashboard = () => {
         );
 
         return (
-            <Card title="Today's Active Appointments">
-                <div className="mb-4 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Search patient or doctor..." 
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                        value={apptSearchTerm}
-                        onChange={(e) => setApptSearchTerm(e.target.value)}
-                    />
-                </div>
-                {filtered.length === 0 ? <EmptyState icon={<Calendar strokeWidth={1.5} className="w-8 h-8" />} title={apptSearchTerm ? "No matches found" : "No visits scheduled"} /> :
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                        {filtered.map(a => (
-                            <div key={a.id} className="p-4 bg-[#FDFDFD] border border-zinc-200 rounded-[16px] flex justify-between items-center transition-shadow hover:shadow-sm">
-                                <div className="flex-1">
-                                    <p className="text-[14px] font-bold tracking-tight text-zinc-900">{a.patientName}</p>
-                                    <p className="text-[12px] text-zinc-500 font-medium">{(a.doctorName || '').toLowerCase().startsWith('dr.') ? a.doctorName : `Dr. ${a.doctorName}`} &bull; {a.appointmentTime}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Badge variant={statusBadge(a.status)}>{a.status}</Badge>
-                                    {a.status === 'Completed' && (
-                                        <Button size="sm" variant="secondary" onClick={() => handleOpenGenBill(a)}>Create Bill</Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+            <div className="space-y-6">
+                {withHeader && <PageHeader title="Patient Appointments" subtitle="Manage hospital check-ins and clinical scheduling" />}
+                <Card title="Today's Active Appointments">
+                    <div className="mb-4 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Search patient or doctor..." 
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            value={apptSearchTerm}
+                            onChange={(e) => setApptSearchTerm(e.target.value)}
+                        />
                     </div>
-                }
-            </Card>
+                    {filtered.length === 0 ? <EmptyState icon={<Calendar strokeWidth={1.5} className="w-8 h-8" />} title={apptSearchTerm ? "No matches found" : "No visits scheduled"} /> :
+                        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                            {filtered.map(a => (
+                                <div key={a.id} className="p-4 bg-[#FDFDFD] border border-zinc-200 rounded-[16px] flex justify-between items-center transition-shadow hover:shadow-sm">
+                                    <div className="flex-1">
+                                        <p className="text-[14px] font-bold tracking-tight text-zinc-900">{a.patientName}</p>
+                                        <p className="text-[12px] text-zinc-500 font-medium">{(a.doctorName || '').toLowerCase().startsWith('dr.') ? a.doctorName : `Dr. ${a.doctorName}`} &bull; {a.appointmentTime}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Badge variant={statusBadge(a.status)}>{a.status}</Badge>
+                                        {a.status === 'Completed' && (
+                                            <Button size="sm" variant="secondary" onClick={() => handleOpenGenBill(a)}>Create Bill</Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    }
+                </Card>
+            </div>
         );
     };
 
-    const renderBills = () => {
+    const renderBills = (withHeader = false) => {
         const pending = bills.filter(b => 
             (b.paymentStatus === 'Pending' || b.paymentStatus === 'PartiallyPaid') &&
             (b.id.toString().includes(billSearchTerm) ||
@@ -212,7 +228,8 @@ export const ReceptionistDashboard = () => {
         );
 
         return (
-            <div className="space-y-6">
+            <div className="space-y-8">
+                {withHeader && <PageHeader title="Billing & Accounts" subtitle="Monitor revenue cycle and collect patient payments" />}
                 <Card title="Outstanding Ledger Accounts">
                     <div className="mb-4 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -225,7 +242,7 @@ export const ReceptionistDashboard = () => {
                         />
                     </div>
                     {pending.length === 0 ? <EmptyState icon={<Receipt strokeWidth={1.5} className="w-8 h-8" />} title={billSearchTerm ? "No matching bills" : "No pending payments"} /> :
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                             {pending.map(b => (
                                 <div key={b.id} className="p-4 flex justify-between items-center bg-white border border-red-100 rounded-[16px] transition-shadow hover:shadow-sm">
                                     <div className="flex flex-col">
@@ -241,8 +258,8 @@ export const ReceptionistDashboard = () => {
 
                 <Card title="Recently Received Payments">
                     {completed.length === 0 ? <p className="text-[12px] text-zinc-400 italic text-center py-4">No recent payments received</p> :
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                            {completed.slice(0, 10).map(b => (
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                            {completed.slice(0, 20).map(b => (
                                 <div key={b.id} className="p-4 flex justify-between items-center bg-emerald-50/30 border border-emerald-100 rounded-[16px]">
                                     <div className="flex flex-col">
                                         <span className="text-[13px] font-semibold text-emerald-900">Ledger #{b.id}</span>
@@ -258,18 +275,53 @@ export const ReceptionistDashboard = () => {
         );
     };
 
-    if (loading) return <LoadingSpinner />;
+    if (loading) return <LoadingSpinner message="Loading receptionist portal..." />;
 
-    return (
-        <div className="space-y-10 max-w-7xl mx-auto">
-            <PageHeader title="Reception Services" subtitle="Orchestrate hospital check-ins, structured billing, and bed allocations" />
+    const renderDashboardOverview = () => (
+        <div className="space-y-10">
+            <PageHeader title="Reception Overview" subtitle="Quick look at today's hospital operations and front-desk flow" />
             
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="p-6 border-none shadow-sm bg-white">
+                    <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Total Appointments</p>
+                    <h3 className="text-2xl font-bold text-zinc-900">{appointments.length}</h3>
+                </Card>
+                <Card className="p-6 border-none shadow-sm bg-white">
+                    <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Pending Collections</p>
+                    <h3 className="text-2xl font-bold text-zinc-900">{bills.filter(b => b.paymentStatus !== 'Paid').length}</h3>
+                </Card>
+                <Card className="p-6 border-none shadow-sm bg-white">
+                    <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mb-1">Available Beds</p>
+                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => b.status === 'Available').length}</h3>
+                </Card>
+                <Card className="p-6 border-none shadow-sm bg-white">
+                    <p className="text-[11px] font-bold text-orange-600 uppercase tracking-widest mb-1">Active Admissions</p>
+                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => b.status === 'Occupied').length}</h3>
+                </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {renderAppointments()}
                 {renderBills()}
             </div>
+        </div>
+    );
 
-            {renderWardManagement()}
+    const renderContent = () => {
+        const path = location.pathname.toLowerCase();
+        
+        if (path.includes('/appointments')) return renderAppointments(true);
+        if (path.includes('/admissions')) return renderWardManagement();
+        if (path.includes('/billing')) return renderBills(true);
+        
+        return renderDashboardOverview();
+    };
+
+    return (
+        <div className="pb-20">
+            <div className="space-y-10 max-w-7xl mx-auto">
+                {renderContent()}
+            </div>
 
             <Modal isOpen={bedStatusModalOpen} onClose={() => setBedStatusModalOpen(false)} title="Update Bed Status" size="sm">
                 {selectedBed && (
