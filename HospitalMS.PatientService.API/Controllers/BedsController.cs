@@ -1,3 +1,4 @@
+using HospitalMS.PatientService.Application.DTOs;
 using HospitalMS.PatientService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,14 @@ public class BedsController : ControllerBase
     {
         var result = await _svc.GetByIdAsync(id);
         return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Create([FromBody] BedDto dto)
+    {
+        var result = await _svc.AddAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
     [HttpPatch("{id:int}/status")]

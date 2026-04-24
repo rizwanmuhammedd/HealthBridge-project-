@@ -1,6 +1,10 @@
+using HospitalMS.PatientService.Application.DTOs;
 using HospitalMS.PatientService.Application.Interfaces;
 using HospitalMS.PatientService.Domain.Entities;
 using HospitalMS.PatientService.Domain.Interfaces;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace HospitalMS.PatientService.Application.Services;
 
@@ -13,11 +17,44 @@ public class BedService : IBedService
         _repository = repository;
     }
 
-    public async Task<List<Bed>> GetAllAsync() => await _repository.GetAllAsync();
+    public async Task<List<BedDto>> GetAllAsync()
+    {
+        var beds = await _repository.GetAllAsync();
+        return beds.Select(Map).ToList();
+    }
 
-    public async Task<List<Bed>> GetAvailableAsync() => await _repository.GetAvailableAsync();
+    public async Task<List<BedDto>> GetAvailableAsync()
+    {
+        var beds = await _repository.GetAvailableAsync();
+        return beds.Select(Map).ToList();
+    }
 
-    public async Task<Bed?> GetByIdAsync(int id) => await _repository.GetByIdAsync(id);
+    public async Task<BedDto?> GetByIdAsync(int id)
+    {
+        var bed = await _repository.GetByIdAsync(id);
+        return bed == null ? null : Map(bed);
+    }
+
+    public async Task<BedDto> AddAsync(BedDto dto)
+    {
+        var bed = new Bed
+        {
+            BedNumber = dto.BedNumber,
+            WardType = dto.WardType,
+            Status = "Available",
+            TenantId = 1 // Default for now
+        };
+        var saved = await _repository.AddAsync(bed);
+        return Map(saved);
+    }
 
     public async Task UpdateStatusAsync(int bedId, string status) => await _repository.UpdateStatusAsync(bedId, status);
+
+    private static BedDto Map(Bed b) => new()
+    {
+        Id = b.Id,
+        BedNumber = b.BedNumber,
+        WardType = b.WardType,
+        Status = b.Status
+    };
 }

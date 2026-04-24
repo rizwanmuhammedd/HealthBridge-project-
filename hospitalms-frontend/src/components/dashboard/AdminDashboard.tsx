@@ -30,6 +30,7 @@ const AdminDashboard: React.FC = () => {
   // Modals
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [bedModalOpen, setBedModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
 
   // Form State
@@ -39,6 +40,26 @@ const AdminDashboard: React.FC = () => {
     specialization: '', qualification: '', departmentId: '', consultationFee: '500',
     profileImageUrl: ''
   });
+
+  const [bedForm, setBedForm] = useState({
+    bedNumber: '', wardType: 'General'
+  });
+
+  const handleAddBed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await api.post('/api/beds', bedForm);
+      addToast({ type: 'success', title: 'Bed Added', message: `Bed ${bedForm.bedNumber} has been added to ${bedForm.wardType} ward.` });
+      setBedModalOpen(false);
+      setBedForm({ bedNumber: '', wardType: 'General' });
+      // Refresh beds
+      const bedRes = await bedApi.getAll();
+      setBeds(bedRes.data);
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed', message: err.response?.data?.message || 'Could not add bed' });
+    } finally { setSubmitting(false); }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -306,7 +327,12 @@ const AdminDashboard: React.FC = () => {
 
   const renderBeds = () => (
     <div className="space-y-8">
-      <PageHeader title="Facility Management" subtitle="Monitor and update hospital bed availability" />
+      <div className="flex justify-between items-center">
+        <PageHeader title="Facility Management" subtitle="Monitor and update hospital bed availability" />
+        <Button onClick={() => setBedModalOpen(true)} className="bg-violet-600 hover:bg-violet-700 shadow-lg shadow-violet-500/10">
+          <Plus className="w-4 h-4" /> Add New Bed
+        </Button>
+      </div>
       <Card className="p-0 border-none shadow-sm bg-white overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-zinc-50/50">
@@ -532,6 +558,41 @@ const AdminDashboard: React.FC = () => {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Add Bed Modal */}
+      <Modal isOpen={bedModalOpen} onClose={() => setBedModalOpen(false)} title="Provision New Hospital Bed" size="sm">
+        <form onSubmit={handleAddBed} className="space-y-6">
+          <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 text-center mb-2">
+            <BedDouble className="w-8 h-8 text-violet-500 mx-auto mb-2" />
+            <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Facility Expansion</p>
+          </div>
+          
+          <Input 
+            label="Bed Designation / Number" 
+            value={bedForm.bedNumber} 
+            onChange={(e: any) => setBedForm({ ...bedForm, bedNumber: e.target.value })} 
+            required 
+            placeholder="e.g. ICU-105 or GEN-402"
+          />
+          
+          <Select
+            label="Clinical Ward Category"
+            value={bedForm.wardType}
+            onChange={(e: any) => setBedForm({ ...bedForm, wardType: e.target.value })}
+            options={[
+              { value: 'General', label: 'General Ward' },
+              { value: 'ICU', label: 'Intensive Care Unit (ICU)' },
+              { value: 'Private', label: 'Private Premium Suite' }
+            ]}
+            required
+          />
+
+          <div className="pt-2 flex gap-3">
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setBedModalOpen(false)}>Cancel</Button>
+            <Button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-700 shadow-lg shadow-violet-500/10" loading={submitting}>Deploy Bed</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

@@ -29,3 +29,11 @@ public class AdmissionResponseDto
     public int TotalDays { get; set; } 
     public decimal TotalBedCharge { get; set; } 
 }
+
+public class BedDto
+{
+    public int Id { get; set; }
+    public string BedNumber { get; set; } = string.Empty;
+    public string WardType { get; set; } = string.Empty; // ICU | General | Private
+    public string Status { get; set; } = string.Empty; // Available | Occupied | UnderCleaning
+}
