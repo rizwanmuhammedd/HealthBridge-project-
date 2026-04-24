@@ -59,8 +59,15 @@
       "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5002 } ]
     },
     {
+      "UpstreamPathTemplate": "/api/beds",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "DownstreamPathTemplate": "/api/Beds",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5002 } ]
+    },
+    {
       "UpstreamPathTemplate": "/api/beds/{everything}",
-      "UpstreamHttpMethod": [ "GET" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
       "DownstreamPathTemplate": "/api/Beds/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5002 } ]
