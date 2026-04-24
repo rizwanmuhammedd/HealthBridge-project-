@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PageHeader, Card, EmptyState, Badge, LoadingSpinner, Button, statusBadge, Modal, Input, Select } from '../ui';
 import { Calendar, Receipt, Search, BedDouble } from 'lucide-react';
-import api, { appointmentApi, prescriptionApi, doctorApi } from '../../api/axiosInstance';
+import api, { appointmentApi, prescriptionApi, doctorApi, bedApi, admissionApi } from '../../api/axiosInstance';
 import { useNotifications } from '../../context/NotificationContext';
 import { EnquiryChat } from '../chat/EnquiryChat';
 
