@@ -2,28 +2,34 @@ import React from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 export const StatCard: React.FC<any> = ({ title, value, icon, color = 'blue' }) => {
+  // Using more muted colors that fit the SaaS aesthetic
   const colors = {
-    blue: 'bg-blue-50 text-blue-600', violet: 'bg-violet-50 text-violet-600',
-    emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600',
-    rose: 'bg-rose-50 text-rose-600'
+    blue: 'bg-zinc-100 text-zinc-700',
+    violet: 'bg-zinc-100 text-zinc-700',
+    emerald: 'bg-zinc-100 text-zinc-700',
+    amber: 'bg-zinc-100 text-zinc-700',
+    rose: 'bg-zinc-100 text-zinc-700'
   };
   return (
-    <div className="rounded-2xl p-5 bg-white border border-slate-100 shadow-sm flex items-center justify-between">
+    <div className="rounded-[16px] p-5 bg-[#FDFDFD] border border-zinc-200 shadow-sm flex items-center justify-between hover:border-zinc-300 transition-colors">
       <div>
-        <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{title}</p>
-        <p className="text-3xl font-bold text-slate-800 mt-1">{value}</p>
+        <p className="text-zinc-500 text-[11px] font-semibold uppercase tracking-wider mb-1">{title}</p>
+        <p className="text-[28px] font-bold tracking-tight text-zinc-900">{value}</p>
       </div>
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${(colors as any)[color]}`}>{icon}</div>
+      <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center ${(colors as any)[color] || colors.blue}`}>{icon}</div>
     </div>
   );
 };
 
 export const Badge: React.FC<any> = ({ variant = 'neutral', children }) => {
   const styles = {
-    success: 'bg-emerald-100 text-emerald-700', warning: 'bg-amber-100 text-amber-700',
-    danger: 'bg-red-100 text-red-700', info: 'bg-blue-100 text-blue-700', neutral: 'bg-slate-100 text-slate-600'
+    success: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    warning: 'bg-amber-50 text-amber-700 border border-amber-100',
+    danger: 'bg-red-50 text-red-700 border border-red-100',
+    info: 'bg-zinc-100 text-zinc-700 border border-zinc-200',
+    neutral: 'bg-zinc-50 text-zinc-600 border border-zinc-200'
   };
-  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(styles as any)[variant]}`}>{children}</span>;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider ${(styles as any)[variant]}`}>{children}</span>;
 };
 
 export const statusBadge = (s: string) => {
@@ -33,77 +39,137 @@ export const statusBadge = (s: string) => {
 
 export const Modal: React.FC<any> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
-  const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const sizes = { sm: 'max-w-[400px]', md: 'max-w-[500px]', lg: 'max-w-[640px]', xl: 'max-w-[800px]' };
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={onClose} />
-      <div className={`relative w-full ${(sizes as any)[size]} bg-white rounded-2xl shadow-2xl border border-white/60 animate-scale-in`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-all"><X className="w-5 h-5" /></button>
+      <div className="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative w-full ${(sizes as any)[size]} bg-[#FDFDFD] rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,0.08)] border border-zinc-200 animate-in zoom-in-95 duration-200`}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+          <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900">{title}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 transition-colors flex items-center justify-center"><X strokeWidth={2} className="w-4 h-4" /></button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-6 py-6 max-h-[85vh] overflow-y-auto custom-scrollbar">{children}</div>
       </div>
     </div>
   );
 };
 
 export const Button: React.FC<any> = ({ variant = 'primary', size = 'md', loading, children, ...props }) => {
-  const v = { primary: 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20', secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200', danger: 'bg-red-500 text-white hover:bg-red-600 shadow-md shadow-red-500/20', ghost: 'text-slate-600 hover:bg-slate-100' };
-  const s = { sm: 'px-3 py-1.5 text-xs rounded-lg', md: 'px-4 py-2.5 text-sm rounded-xl', lg: 'px-6 py-3 text-sm rounded-xl' };
+  const v = {
+    primary: 'bg-emerald-500 text-white hover:bg-emerald-600 border border-emerald-500 shadow-sm',
+    secondary: 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300',
+    danger: 'bg-white text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300',
+    ghost: 'text-zinc-600 hover:bg-zinc-100'
+  };
+  const s = {
+    sm: 'px-3 py-1.5 text-[12px] rounded-lg',
+    md: 'px-4 py-2.5 text-[13px] rounded-xl',
+    lg: 'px-6 py-3 text-[14px] rounded-xl'
+  };
   return (
-    <button {...props} disabled={props.disabled || loading} className={`inline-flex items-center justify-center gap-2 font-semibold transition-all active:scale-[0.98] disabled:opacity-50 ${(v as any)[variant]} ${(s as any)[size]} ${props.className || ''}`}>
-      {loading && <Loader2 className="w-4 h-4 animate-spin" />}{children}
+    <button {...props} disabled={props.disabled || loading} className={`inline-flex items-center justify-center gap-2 font-medium transition-all focus:outline-none focus:ring-4 focus:ring-zinc-100 disabled:opacity-50 ${(v as any)[variant]} ${(s as any)[size]} ${props.className || ''}`}>
+      {loading && <Loader2 strokeWidth={2} className="w-3.5 h-3.5 animate-spin" />}{children}
     </button>
   );
 };
 
 export const Input: React.FC<any> = ({ label, error, ...props }) => (
   <div className="flex flex-col gap-1.5 w-full">
-    {label && <label className="text-sm font-semibold text-slate-700">{label}</label>}
-    <input {...props} className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? 'border-red-400' : 'border-slate-200'}`} />
-    {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+    {label && <label className="text-[12px] font-medium text-zinc-700 ml-0.5">{label}</label>}
+    <input {...props} className={`w-full px-3.5 py-2.5 rounded-lg border text-[13px] text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-4 focus:ring-zinc-100 transition-all ${error ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-zinc-400'}`} />
+    {error && <p className="text-[11px] text-red-500 font-medium ml-0.5">{error}</p>}
   </div>
 );
 
 export const Select: React.FC<any> = ({ label, error, options, ...props }) => (
   <div className="flex flex-col gap-1.5 w-full">
-    {label && <label className="text-sm font-semibold text-slate-700">{label}</label>}
-    <select {...props} className={`w-full px-4 py-2.5 rounded-xl border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? 'border-red-400' : 'border-slate-200'}`}>
-      {options.map((o:any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    {label && <label className="text-[12px] font-medium text-zinc-700 ml-0.5">{label}</label>}
+    <select {...props} className={`w-full px-3.5 py-2.5 rounded-lg border text-[13px] text-zinc-900 bg-white focus:outline-none focus:ring-4 focus:ring-zinc-100 transition-all ${error ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-zinc-400'}`}>
+      {options.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   </div>
 );
 
-export const LoadingSpinner: React.FC<any> = ({ message = 'Loading…' }) => (
-  <div className="flex flex-col items-center justify-center h-48 gap-4">
-    <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-    <p className="text-sm text-slate-500 font-medium">{message}</p>
+export const LoadingSpinner: React.FC<any> = ({ message = 'Loading...' }) => (
+  <div className="flex flex-col items-center justify-center h-48 gap-3">
+    <Loader2 strokeWidth={1.5} className="w-6 h-6 text-zinc-400 animate-spin" />
+    <p className="text-[13px] text-zinc-500 font-medium">{message}</p>
   </div>
 );
 
 export const EmptyState: React.FC<any> = ({ icon, title, description }) => (
-  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-    <div className="text-slate-300 mb-2">{icon}</div>
-    <p className="font-bold text-slate-700">{title}</p>
-    {description && <p className="text-sm text-slate-400">{description}</p>}
+  <div className="flex flex-col items-center justify-center py-10 px-4 gap-2 text-center border border-dashed border-zinc-200 rounded-[16px] bg-zinc-50/50">
+    <div className="text-zinc-400 mb-1">{icon}</div>
+    <p className="font-semibold text-zinc-900 text-[14px]">{title}</p>
+    {description && <p className="text-[13px] text-zinc-500 max-w-[250px]">{description}</p>}
   </div>
 );
 
 export const PageHeader: React.FC<any> = ({ title, subtitle, action }) => (
-  <div className="flex items-start justify-between mb-6">
-    <div><h1 className="text-2xl font-bold text-slate-800">{title}</h1>{subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}</div>
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 border-b border-zinc-200 pb-5">
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{title}</h1>
+      {subtitle && <p className="text-zinc-500 text-[14px] mt-1.5">{subtitle}</p>}
+    </div>
     {action}
   </div>
 );
 
 export const Card: React.FC<any> = ({ children, title, action, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${className}`}>
-    {(title || action) && <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">{title && <h3 className="font-bold text-slate-800 text-sm">{title}</h3>}{action}</div>}
+  <div className={`bg-[#FDFDFD] rounded-[20px] border border-zinc-200 shadow-sm overflow-hidden ${className}`}>
+    {(title || action) && (
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+        {title && <h3 className="font-semibold text-zinc-900 text-[14px] tracking-tight">{title}</h3>}
+        {action}
+      </div>
+    )}
     <div className="p-5">{children}</div>
   </div>
 );
 
-export const ProgressBar: React.FC<any> = ({ value, max, color = 'bg-blue-500' }) => (
-  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, Math.round((value/max)*100))}%` }} /></div>
+export const ProgressBar: React.FC<any> = ({ value, max, color = 'bg-emerald-500' }) => (
+  <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, Math.max(0, (value / max) * 100))}%` }} /></div>
 );
+
+import { Camera, Image as ImageIcon } from 'lucide-react';
+
+export const ImageUpload: React.FC<any> = ({ value, onChange, label, loading }) => {
+  const [preview, setPreview] = React.useState(value);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+      onChange(file);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="text-[12px] font-medium text-zinc-700 ml-0.5">{label}</label>}
+      <div className="flex items-center gap-4">
+        <div className="relative w-16 h-16 rounded-xl bg-white border border-dashed border-zinc-300 overflow-hidden flex items-center justify-center group hover:border-zinc-500 hover:bg-zinc-50 transition-all">
+          {preview ? (
+            <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon strokeWidth={1.5} className="w-5 h-5 text-zinc-300 group-hover:text-zinc-400" />
+          )}
+          {loading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+              <Loader2 strokeWidth={2} className="w-4 h-4 text-zinc-900 animate-spin" />
+            </div>
+          )}
+          <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-emerald-500/60 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Camera strokeWidth={2} className="w-4 h-4 text-white" />
+            <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} disabled={loading} />
+          </label>
+        </div>
+        <div className="flex-1">
+          <p className="text-[11px] text-zinc-500 font-medium leading-relaxed uppercase tracking-wider">Supports JPG, PNG<br />Max size 2MB</p>
+        </div>
+      </div>
+    </div>
+  );
+};

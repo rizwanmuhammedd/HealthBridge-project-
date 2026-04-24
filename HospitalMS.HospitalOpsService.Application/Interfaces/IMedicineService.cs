@@ -1,11 +1,14 @@
-using HospitalMS.HospitalOpsService.Domain.Entities;
+using HospitalMS.HospitalOpsService.Application.DTOs;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace HospitalMS.HospitalOpsService.Application.Interfaces;
 
 public interface IMedicineService
 {
-    Task<List<Medicine>> GetAllAsync();
-    Task<Medicine> AddAsync(Medicine medicine);
-    Task UpdateStockAsync(int id, int newQty);
-    Task<List<Medicine>> GetLowStockAsync();
+    Task<List<MedicineDto>> GetAllAsync();
+    Task<MedicineDto?> GetByIdAsync(int id);
+    Task<List<MedicineDto>> GetLowStockAsync();
+    Task<MedicineDto> CreateAsync(CreateMedicineDto dto);
+    Task UpdateStockAsync(int id, int newQuantity);
 }

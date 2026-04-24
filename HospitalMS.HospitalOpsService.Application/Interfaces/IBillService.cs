@@ -6,8 +6,9 @@ namespace HospitalMS.HospitalOpsService.Application.Interfaces;
 
 public interface IBillService
 {
-    Task<BillResponseDto> GenerateBillAsync(CreateBillDto dto);
-    Task ProcessPaymentAsync(int billId, PaymentDto dto);
-    Task<List<BillResponseDto>> GetByPatientAsync(int patientId);
-    Task<BillResponseDto?> GetByIdAsync(int id);
+    Task<BillDto> GenerateBillAsync(GenerateBillDto dto);
+    Task<BillDto> RecordPaymentAsync(int billId, RecordPaymentDto dto);
+    Task<List<BillDto>> GetByPatientAsync(int patientId);
+    Task<List<BillDto>> GetPendingAsync();
+    Task<BillDto?> GetByIdAsync(int id);
 }

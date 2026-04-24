@@ -20,14 +20,14 @@ public class AdmissionsController : ControllerBase
     public async Task<IActionResult> GetActive()
         => Ok(await _svc.GetAllActiveAsync());
         
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     { 
         var r = await _svc.GetByIdAsync(id); 
         return r == null ? NotFound() : Ok(r); 
     }
     
-    [HttpGet("patient/{patientId}")]
+    [HttpGet("patient/{patientId:int}")]
     public async Task<IActionResult> GetByPatient(int patientId)
         => Ok(await _svc.GetByPatientIdAsync(patientId));
         
@@ -39,7 +39,7 @@ public class AdmissionsController : ControllerBase
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
     
-    [HttpPut("{id}/discharge")]
+    [HttpPut("{id:int}/discharge")]
     [Authorize(Roles = "Doctor,Admin")]
     public async Task<IActionResult> Discharge(int id, [FromBody] DischargePatientDto dto)
     {

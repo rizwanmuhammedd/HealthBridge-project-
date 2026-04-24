@@ -1,21 +1,20 @@
-using HospitalMS.PatientService.Application.Hubs;
 using HospitalMS.PatientService.Application.DTOs;
 using HospitalMS.PatientService.Application.Interfaces;
 using HospitalMS.PatientService.Domain.Entities;
 using HospitalMS.PatientService.Domain.Interfaces;
-using Microsoft.AspNetCore.SignalR;
+using System.Net.Http.Json;
 
 namespace HospitalMS.PatientService.Application.Services;
 
 public class LabService : ILabService
 {
     private readonly ILabOrderRepository _repo;
-    private readonly IHubContext<HospitalHub> _hub;
+    private readonly HttpClient _httpClient;
 
-    public LabService(ILabOrderRepository repo, IHubContext<HospitalHub> hub)
+    public LabService(ILabOrderRepository repo, IHttpClientFactory httpClientFactory)
     {
         _repo = repo;
-        _hub = hub;
+        _httpClient = httpClientFactory.CreateClient();
     }
 
     public async Task<List<LabOrder>> GetAllAsync() => await _repo.GetAllAsync();
@@ -51,13 +50,24 @@ public class LabService : ILabService
 
         await _repo.UpdateAsync(order);
 
-        // SignalR — notify patient their result is ready
-        await _hub.Clients.Group($"user_{order.PatientId}")
-            .SendAsync("LabResultReady", new
+        // Notify NotificationService to push live SignalR and persist notification
+        try
+        {
+            await _httpClient.PostAsJsonAsync("http://localhost:5004/api/notifications/broadcast", new
             {
-                OrderId = orderId,
-                Message = "Your lab result is ready. Please check.",
-                IsAbnormal = isAbnormal
+                GroupName = $"user_{order.PatientId}",
+                EventName = "ReceiveNotification",
+                Payload = new
+                {
+                    Title = isAbnormal ? "🔴 Abnormal Lab Result" : "✅ Lab Result Ready",
+                    Message = $"Your lab result for order #{orderId} is ready.",
+                    Type = isAbnormal ? "error" : "success"
+                }
             });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to notify NotificationService: {ex.Message}");
+        }
     }
 }

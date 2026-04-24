@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HospitalMS.PatientService.Domain.Entities;
@@ -8,6 +8,12 @@ public partial class Appointment
     public int Id { get; set; }
 
     public int PatientId { get; set; }
+
+    public string PatientName { get; set; } = string.Empty;
+
+    public string? PatientPhone { get; set; }
+
+    public int PatientAge { get; set; }
 
     public int DoctorId { get; set; }
 

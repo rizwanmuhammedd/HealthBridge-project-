@@ -2,42 +2,59 @@ using HospitalMS.PatientService.Application.DTOs;
 using HospitalMS.PatientService.Application.Interfaces;
 using HospitalMS.PatientService.Domain.Entities;
 using HospitalMS.PatientService.Domain.Interfaces;
+using System.Net.Http.Json;
 
 namespace HospitalMS.PatientService.Application.Services;
 
 public class AppointmentService : IAppointmentService
 {
-    private readonly IAppointmentRepository _repo;
+    private readonly IAppointmentRepository _repository;
     private readonly IDoctorRepository _doctorRepo;
+    private readonly IDoctorScheduleRepository _scheduleRepo;
+    private readonly HttpClient _httpClient;
 
-    public AppointmentService(IAppointmentRepository repo, IDoctorRepository doctorRepo)
+    public AppointmentService(
+        IAppointmentRepository repository, 
+        IDoctorRepository doctorRepo,
+        IDoctorScheduleRepository scheduleRepo,
+        IHttpClientFactory httpClientFactory)
     {
-        _repo = repo;
+        _repository = repository;
         _doctorRepo = doctorRepo;
+        _scheduleRepo = scheduleRepo;
+        _httpClient = httpClientFactory.CreateClient();
     }
+
 
     public async Task<List<AppointmentResponseDto>> GetAllAsync()
     {
-        var list = await _repo.GetAllAsync();
+        var list = await _repository.GetAllAsync();
         return list.Select(MapToDto).ToList();
     }
 
     public async Task<AppointmentResponseDto?> GetByIdAsync(int id)
     {
-        var a = await _repo.GetByIdAsync(id);
+        var a = await _repository.GetByIdAsync(id);
         return a == null ? null : MapToDto(a);
     }
 
     public async Task<List<AppointmentResponseDto>> GetMyAppointmentsAsync(int patientId)
     {
-        var list = await _repo.GetByPatientIdAsync(patientId);
+        var list = await _repository.GetByPatientIdAsync(patientId);
         return list.Select(MapToDto).ToList();
     }
 
     public async Task<List<AppointmentResponseDto>> GetDoctorAppointmentsAsync(int doctorId)
     {
-        var list = await _repo.GetByDoctorIdAsync(doctorId);
+        var list = await _repository.GetByDoctorIdAsync(doctorId);
         return list.Select(MapToDto).ToList();
+    }
+
+    public async Task<List<AppointmentResponseDto>> GetByDoctorUserIdAsync(int userId)
+    {
+        var doctor = await _doctorRepo.GetByUserIdAsync(userId);
+        if (doctor == null) return new List<AppointmentResponseDto>();
+        return await GetDoctorAppointmentsAsync(doctor.Id);
     }
 
     public async Task<AppointmentResponseDto> BookAsync(int patientId, BookAppointmentDto dto)
@@ -47,29 +64,52 @@ public class AppointmentService : IAppointmentService
         if (doctor == null) throw new Exception("Doctor not found");
         if (!doctor.IsAvailable) throw new Exception("Doctor is not currently available");
 
-        // 2. Prevent past dates
-        if (dto.AppointmentDate <= DateOnly.FromDateTime(DateTime.Today))
-            throw new Exception("Appointment must be a future date");
+        // 2. Prevent past dates (Allow Today)
+        if (dto.AppointmentDate < DateOnly.FromDateTime(DateTime.Today))
+            throw new Exception("Appointment must not be in the past");
 
-        // 3. Check exact time slot not already taken
-        bool slotTaken = await _repo.ExistsAsync(dto.DoctorId, dto.AppointmentDate, dto.AppointmentTime);
+        // 3. Validate requested time is within Doctor's Schedule
+        var schedules = await _scheduleRepo.GetByDoctorAndDateAsync(dto.DoctorId, dto.AppointmentDate);
+        var activeSchedules = schedules.Where(s => !s.IsLeave).ToList();
+        
+        Console.WriteLine($"Booking attempt for Doctor {dto.DoctorId} on {dto.AppointmentDate} at {dto.AppointmentTime}");
+        foreach(var s in activeSchedules) Console.WriteLine($" - Available Shift: {s.ShiftStart} to {s.ShiftEnd}");
+
+        if (!activeSchedules.Any())
+            throw new Exception("The doctor has no active schedule for the selected date.");
+
+        bool isWithinShift = activeSchedules.Any(s => 
+            dto.AppointmentTime >= s.ShiftStart && dto.AppointmentTime <= s.ShiftEnd);
+
+        if (!isWithinShift)
+        {
+            Console.WriteLine("REJECTED: Time is outside scheduled shifts.");
+            throw new Exception($"The requested time {dto.AppointmentTime} is outside of the doctor's scheduled shift hours for today.");
+        }
+        Console.WriteLine("ACCEPTED: Time is within shift.");
+
+        // 4. Check exact time slot not already taken
+        bool slotTaken = await _repository.ExistsAsync(dto.DoctorId, dto.AppointmentDate, dto.AppointmentTime);
         if (slotTaken) throw new Exception("This time slot is already booked. Please choose another time.");
 
         // 4. Check patient doesn't already have appointment same day same doctor
-        bool duplicate = await _repo.PatientHasAppointmentAsync(patientId, dto.DoctorId, dto.AppointmentDate);
+        bool duplicate = await _repository.PatientHasAppointmentAsync(patientId, dto.DoctorId, dto.AppointmentDate);
         if (duplicate) throw new Exception("You already have an appointment with this doctor on this date.");
 
         // 5. Check max patients per day not exceeded
-        int todayCount = await _repo.GetDoctorDayCountAsync(dto.DoctorId, dto.AppointmentDate);
+        int todayCount = await _repository.GetDoctorDayCountAsync(dto.DoctorId, dto.AppointmentDate);
         if (todayCount >= doctor.MaxPatientsPerDay)
             throw new Exception($"Doctor's schedule is full. Max {doctor.MaxPatientsPerDay} patients per day.");
 
         // 6. Auto-assign token number
-        int token = await _repo.GetNextTokenAsync(dto.DoctorId, dto.AppointmentDate);
+        int token = await _repository.GetNextTokenAsync(dto.DoctorId, dto.AppointmentDate);
 
         var appointment = new Appointment
         {
             PatientId = patientId,
+            PatientName = dto.PatientName,
+            PatientPhone = dto.PatientPhone,
+            PatientAge = dto.PatientAge,
             DoctorId = dto.DoctorId,
             AppointmentDate = dto.AppointmentDate,
             AppointmentTime = dto.AppointmentTime,
@@ -79,39 +119,92 @@ public class AppointmentService : IAppointmentService
             CreatedAt = DateTime.UtcNow
         };
 
-        var created = await _repo.AddAsync(appointment);
-        var reloaded = await _repo.GetByIdAsync(created.Id);
+        var created = await _repository.AddAsync(appointment);
+        var reloaded = await _repository.GetByIdAsync(created.Id);
+
+        // Notify Doctor via SignalR (and persist to DB via NotificationService)
+        try
+        {
+            await _httpClient.PostAsJsonAsync("http://localhost:5004/api/notifications", new
+            {
+                UserId = doctor.UserId,
+                Title = "🗓 New Appointment Booked",
+                Message = $"New appointment from {dto.PatientName} for {dto.AppointmentDate} at {dto.AppointmentTime:HH:mm}",
+                Type = "info"
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to notify Doctor: {ex.Message}");
+        }
+
         return MapToDto(reloaded!);
     }
 
     public async Task UpdateAsync(int id, UpdateAppointmentDto dto)
     {
-        var a = await _repo.GetByIdAsync(id)
+        var a = await _repository.GetByIdAsync(id)
             ?? throw new Exception("Appointment not found");
 
         a.Status = dto.Status;
         a.ConsultationNotes = dto.ConsultationNotes;
         a.Diagnosis = dto.Diagnosis;
         // a.UpdatedAt = DateTime.UtcNow; // Assuming UpdatedAt exists in entity
-        await _repo.UpdateAsync(a);
+        await _repository.UpdateAsync(a);
     }
 
     public async Task CancelAsync(int id)
     {
-        var a = await _repo.GetByIdAsync(id)
+        var a = await _repository.GetByIdAsync(id)
             ?? throw new Exception("Appointment not found");
 
         a.Status = "Cancelled";
         // a.UpdatedAt = DateTime.UtcNow;
-        await _repo.UpdateAsync(a);
+        await _repository.UpdateAsync(a);
     }
 
     public async Task<List<string>> GetBookedTimesAsync(int doctorId, DateOnly date)
     {
-        var appointments = await _repo.GetByDateAsync(date);
+        var appointments = await _repository.GetByDoctorAndDateAsync(doctorId, date);
         return appointments
-            .Where(a => a.DoctorId == doctorId && a.Status != "Cancelled")
+            .Where(a => a.Status != "Cancelled")
             .Select(a => a.AppointmentTime.ToString("HH:mm"))
+            .ToList();
+    }
+
+    public async Task<List<string>> GetAvailableSlotsAsync(int doctorId, DateOnly date)
+    {
+        var schedules = await _scheduleRepo.GetByDoctorAndDateAsync(doctorId, date);
+        var activeSchedules = schedules.Where(s => !s.IsLeave).ToList();
+
+        if (!activeSchedules.Any()) return new List<string>();
+
+        var bookedTimes = (await GetBookedTimesAsync(doctorId, date)).ToHashSet();
+        var allPossibleSlots = new List<string>();
+
+        foreach (var shift in activeSchedules)
+        {
+            var start = shift.ShiftStart;
+            var end = shift.ShiftEnd;
+
+            var current = start;
+            while (current <= end)
+            {
+                var timeStr = current.ToString("HH:mm");
+                if (bookedTimes.Contains(timeStr))
+                {
+                    allPossibleSlots.Add($"{timeStr}::booked");
+                }
+                else
+                {
+                    allPossibleSlots.Add(timeStr);
+                }
+                current = current.AddMinutes(15);
+            }
+        }
+
+        return allPossibleSlots
+            .OrderBy(s => s)
             .ToList();
     }
 
@@ -120,8 +213,11 @@ public class AppointmentService : IAppointmentService
     {
         Id = a.Id,
         PatientId = a.PatientId,
-        DoctorName = a.Doctor != null ? $"Dr. {a.Doctor.Qualification}" : "Unknown", // Simplified for now
-        DepartmentName = a.Doctor?.Department?.Name ?? "Unknown",
+        PatientName = a.PatientName,
+        PatientPhone = a.PatientPhone,
+        PatientAge = a.PatientAge,
+        DoctorName = a.Doctor?.FullName ?? "Specialist",
+        DepartmentName = a.Doctor?.Department?.Name ?? "General",
         AppointmentDate = a.AppointmentDate,
         AppointmentTime = a.AppointmentTime,
         TokenNumber = a.TokenNumber,

@@ -6,9 +6,9 @@ namespace HospitalMS.PatientService.Domain.Entities;
 public partial class Doctor
 {
     public int Id { get; set; }
-
     public int UserId { get; set; }
-
+    public string FullName { get; set; } = string.Empty;
+    public string? ProfileImageUrl { get; set; }
     public int DepartmentId { get; set; }
 
     public string Specialization { get; set; } = null!;

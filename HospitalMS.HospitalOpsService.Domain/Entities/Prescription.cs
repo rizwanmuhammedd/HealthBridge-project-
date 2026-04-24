@@ -8,6 +8,10 @@ public partial class Prescription
 
     public int PatientId { get; set; }
 
+    public string? PatientName { get; set; }
+
+    public string? PatientPhone { get; set; }
+
     public int DoctorId { get; set; }
 
     public int? AppointmentId { get; set; }
@@ -19,6 +23,12 @@ public partial class Prescription
     public DateTime PrescribedAt { get; set; }
 
     public DateTime? DispensingAt { get; set; }
+
+    public bool IsPaid { get; set; }
+
+    public bool IsMedicinePaid { get; set; }
+
+    public bool IsMedicinePaymentDismissed { get; set; }
 
     public int? DispensingPharmacistId { get; set; }
 

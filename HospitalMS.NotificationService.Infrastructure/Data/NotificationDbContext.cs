@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HospitalMS.NotificationService.Infrastructure.Data;
 public partial class NotificationDbContext : DbContext
 {
-    private readonly ITenantProvider _tenant;
+    private readonly ITenantProvider? _tenant;
 
     public NotificationDbContext()
     {
@@ -21,11 +21,13 @@ public partial class NotificationDbContext : DbContext
     }
 
     public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<ChatMessage> ChatMessages { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<Notification>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<ChatMessage>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
 
         modelBuilder.Entity<Notification>(entity =>
         {
@@ -43,6 +45,16 @@ public partial class NotificationDbContext : DbContext
             entity.Property(e => e.SentAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Type).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PatientId).HasMaxLength(50);
+            entity.Property(e => e.PatientName).HasMaxLength(200);
+            entity.Property(e => e.ReceptionistName).HasMaxLength(200);
+            entity.Property(e => e.Message).HasMaxLength(2000);
+            entity.Property(e => e.Timestamp).HasDefaultValueSql("(getutcdate())");
         });
 
       

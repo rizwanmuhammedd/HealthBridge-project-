@@ -9,7 +9,7 @@ namespace HospitalMS.PatientService.Infrastructure.Data;
 
 public partial class PatientDbContext : DbContext
 {
-    private readonly ITenantProvider _tenant;
+    private readonly ITenantProvider? _tenant;
 
     public PatientDbContext()
     {
@@ -40,14 +40,14 @@ public partial class PatientDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Admission>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Appointment>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Bed>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Department>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Doctor>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<DoctorSchedule>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<LabOrder>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<LabTest>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<Admission>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Appointment>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Bed>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Department>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Doctor>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<DoctorSchedule>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<LabOrder>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<LabTest>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
 
         modelBuilder.Entity<Admission>(entity =>
         {
@@ -147,6 +147,8 @@ public partial class PatientDbContext : DbContext
             entity.Property(e => e.IsAvailable).HasDefaultValue(true);
             entity.Property(e => e.LicenseNumber).HasMaxLength(50);
             entity.Property(e => e.MaxPatientsPerDay).HasDefaultValue(30);
+            entity.Property(e => e.FullName).HasMaxLength(150);
+            entity.Property(e => e.ProfileImageUrl).HasMaxLength(500);
             entity.Property(e => e.Qualification).HasMaxLength(200);
             entity.Property(e => e.Specialization).HasMaxLength(100);
 
@@ -160,6 +162,7 @@ public partial class PatientDbContext : DbContext
             {
                 Id = 1,
                 UserId = 2,
+                FullName = "Dr. John Smith",
                 DepartmentId = 1,
                 Specialization = "General Physician",
                 Qualification = "MBBS, MD",

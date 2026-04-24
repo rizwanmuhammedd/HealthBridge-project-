@@ -1,9 +1,18 @@
 using HospitalMS.NotificationService.Application.Interfaces;
+using HospitalMS.NotificationService.Application.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace HospitalMS.NotificationService.API.Controllers;
+
+public class BroadcastRequest
+{
+    public string? GroupName { get; set; }
+    public string EventName { get; set; } = "ReceiveNotification";
+    public object Payload { get; set; } = new { };
+}
 
 [ApiController]
 [Route("api/[controller]")]
@@ -11,7 +20,13 @@ namespace HospitalMS.NotificationService.API.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationService _svc;
-    public NotificationsController(INotificationService svc) => _svc = svc;
+    private readonly IHubContext<HospitalHub> _hub;
+
+    public NotificationsController(INotificationService svc, IHubContext<HospitalHub> hub)
+    {
+        _svc = svc;
+        _hub = hub;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetMy()
@@ -19,7 +34,7 @@ public class NotificationsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
-        int userId = int.Parse(userIdStr);
+        if (!int.TryParse(userIdStr, out int userId)) return BadRequest("Invalid User ID");
         return Ok(await _svc.GetMyNotificationsAsync(userId));
     }
 
@@ -29,7 +44,7 @@ public class NotificationsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
-        int userId = int.Parse(userIdStr);
+        if (!int.TryParse(userIdStr, out int userId)) return BadRequest("Invalid User ID");
         return Ok(new { count = await _svc.GetUnreadCountAsync(userId) });
     }
 
@@ -46,8 +61,57 @@ public class NotificationsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
-        int userId = int.Parse(userIdStr);
+        if (!int.TryParse(userIdStr, out int userId)) return BadRequest("Invalid User ID");
         await _svc.MarkAllAsReadAsync(userId);
         return NoContent();
+    }
+
+    public class CreateNotificationRequest
+    {
+        public int UserId { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public string Type { get; set; }
+        public int? RelatedEntityId { get; set; }
+        public string? RelatedEntityType { get; set; }
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> Create([FromBody] CreateNotificationRequest request)
+    {
+        await _svc.SendAsync(request.UserId, request.Title, request.Message, request.Type, request.RelatedEntityId, request.RelatedEntityType);
+        return Ok(new { message = "Notification created and sent" });
+    }
+
+    public class RoleNotificationRequest
+    {
+        public string Role { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+    }
+
+    [HttpPost("role")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendToRole([FromBody] RoleNotificationRequest request)
+    {
+        await _svc.SendToRoleAsync(request.Role, request.Title, request.Message, request.Type);
+        return Ok(new { message = $"Notifications sent to all {request.Role}s" });
+    }
+
+    [HttpPost("broadcast")]
+    [AllowAnonymous] // Usually internal, but allowing for dev ease. Secure in production.
+    public async Task<IActionResult> Broadcast([FromBody] BroadcastRequest request)
+    {
+        if (string.IsNullOrEmpty(request.GroupName))
+        {
+            await _hub.Clients.All.SendAsync(request.EventName, request.Payload);
+        }
+        else
+        {
+            await _hub.Clients.Group(request.GroupName).SendAsync(request.EventName, request.Payload);
+        }
+        return Ok(new { message = "Broadcast sent successfully" });
     }
 }

@@ -11,22 +11,42 @@ public class AppointmentRepository : IAppointmentRepository
     public AppointmentRepository(PatientDbContext db) => _db = db;
 
     public async Task<List<Appointment>> GetAllAsync()
-        => await _db.Appointments.Include(a => a.Doctor).ToListAsync();
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .ToListAsync();
 
     public async Task<Appointment?> GetByIdAsync(int id)
-        => await _db.Appointments.Include(a => a.Doctor)
-        .FirstOrDefaultAsync(a => a.Id == id);
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .FirstOrDefaultAsync(a => a.Id == id);
 
     public async Task<List<Appointment>> GetByPatientIdAsync(int patientId)
-        => await _db.Appointments.Where(a => a.PatientId == patientId)
-        .OrderByDescending(a => a.AppointmentDate)
-        .ToListAsync();
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .Where(a => a.PatientId == patientId)
+            .OrderByDescending(a => a.AppointmentDate)
+            .ToListAsync();
 
     public async Task<List<Appointment>> GetByDoctorIdAsync(int doctorId)
-        => await _db.Appointments.Where(a => a.DoctorId == doctorId).ToListAsync();
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .Where(a => a.DoctorId == doctorId).ToListAsync();
 
     public async Task<List<Appointment>> GetByDateAsync(DateOnly date)
-        => await _db.Appointments.Where(a => a.AppointmentDate == date).ToListAsync();
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .Where(a => a.AppointmentDate == date).ToListAsync();
+
+    public async Task<List<Appointment>> GetByDoctorAndDateAsync(int doctorId, DateOnly date)
+        => await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.Department)
+            .Where(a => a.DoctorId == doctorId && a.AppointmentDate == date && a.Status != "Cancelled").ToListAsync();
 
     public async Task<int> GetNextTokenAsync(int doctorId, DateOnly date)
     {

@@ -5,11 +5,19 @@ namespace HospitalMS.PatientService.Application.Interfaces;
 
 public interface IDoctorService
 {
-    Task<List<Doctor>> GetAllAsync();
-    Task<Doctor?> GetByIdAsync(int id);
-    Task<List<Doctor>> GetByDepartmentAsync(int deptId);
-    Task<Doctor> CreateAsync(CreateDoctorDto dto);
-    Task UpdateAsync(Doctor doctor);
+    Task<List<DoctorDto>> GetAllAsync();
+    Task<DoctorDto?> GetByIdAsync(int id);
+    Task<DoctorDto?> GetByUserIdAsync(int userId);
+    Task<DoctorDto> GetOrCreateByUserIdAsync(int userId, string fullName);
+    Task<List<DoctorDto>> GetByDepartmentAsync(int deptId);
+    Task<DoctorDto> CreateAsync(CreateDoctorDto dto);
+    Task UpdateAsync(UpdateDoctorDto dto);
     Task DeactivateAsync(int id);
     Task ToggleAvailabilityAsync(int id);
+
+    // Schedule Management
+    Task<List<DoctorScheduleDto>> GetSchedulesAsync(int doctorId);
+    Task<DoctorScheduleDto> AddScheduleAsync(int doctorId, CreateDoctorScheduleDto dto);
+    Task DeleteScheduleAsync(int scheduleId);
+    Task<List<string>> GetAvailableTimeSlotsAsync(int doctorId, DateOnly date);
 }

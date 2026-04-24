@@ -1,7 +1,9 @@
+// HospitalMS.HospitalOpsService.Domain/Entities/Bill.cs
 using System;
 using System.Collections.Generic;
 
-using HospitalMS.HospitalOpsService.Domain.Entities;
+namespace HospitalMS.HospitalOpsService.Domain.Entities;
+
 public partial class Bill
 {
     public int Id { get; set; }
@@ -11,6 +13,8 @@ public partial class Bill
     public int PatientId { get; set; }
 
     public int? AdmissionId { get; set; }
+    
+    public int? PrescriptionId { get; set; }
 
     public decimal ConsultationCharge { get; set; }
 

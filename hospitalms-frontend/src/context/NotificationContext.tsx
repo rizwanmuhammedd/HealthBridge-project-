@@ -1,15 +1,33 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useSignalR } from '../hooks/useSignalR';
 import { useAuth } from './AuthContext';
-import { AlertTriangle, FlaskConical, BedDouble, Bell, X, CheckCircle, Info } from 'lucide-react';
+import { notificationApi } from '../api/axiosInstance';
+import { AlertTriangle, FlaskConical, BedDouble, Bell, X, CheckCircle, Info, MailOpen, Trash2 } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export interface Toast { id: string; type: ToastType; title: string; message: string; duration?: number; }
+
+export interface Notification {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  sentAt: string;
+  relatedEntityId?: number;
+  relatedEntityType?: string;
+}
+
 interface NotificationContextType {
   toasts: Toast[];
+  notifications: Notification[];
+  unreadCount: number;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
-  unreadCount: number;
+  markAsRead: (id: number) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
@@ -52,48 +70,111 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
 };
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts]       = useState<Toast[]>([]);
-  const [unreadCount, setUnread]  = useState(0);
-  const { isAuthenticated }       = useAuth();
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { isAuthenticated } = useAuth();
+
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const [notifRes, countRes] = await Promise.all([
+        notificationApi.getMy(),
+        notificationApi.getUnreadCount()
+      ]);
+      setNotifications(notifRes.data);
+      setUnreadCount(countRes.data.count);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s as fallback
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts(prev => [...prev.slice(-4), { ...toast, id }]);
-    setUnread(c => c + 1);
-  }, []);
+    fetchNotifications(); // Refresh list when new toast arrives
+  }, [fetchNotifications]);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  useSignalR([
+  const markAsRead = async (id: number) => {
+    try {
+      await notificationApi.markAsRead(id);
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  const signalrEvents = React.useMemo(() => [
     {
       event: 'LowStockAlert',
-      handler: (data: any) => addToast({
-        type: 'warning', title: '⚠ Low Stock Alert',
-        message: `${data.Name} — Only ${data.CurrentStock} units left (min: ${data.MinimumStock})`,
-        duration: 8000,
-      }),
+      handler: (data: any) => {
+        addToast({
+          type: 'warning', 
+          title: '⚠ Low Stock Alert',
+          message: `${data.name || data.Name} — Only ${data.currentStock || data.CurrentStock} units left`,
+          duration: 8000,
+        });
+      },
     },
     {
       event: 'LabResultReady',
-      handler: (data: any) => addToast({
-        type: data.IsAbnormal ? 'error' : 'success',
-        title: data.IsAbnormal ? '🔴 Abnormal Lab Result' : '✅ Lab Result Ready',
-        message: data.Message, duration: 7000,
-      }),
+      handler: (data: any) => {
+        addToast({
+          type: (data.isAbnormal || data.IsAbnormal) ? 'error' : 'success',
+          title: (data.isAbnormal || data.IsAbnormal) ? '🔴 Abnormal Lab Result' : '✅ Lab Result Ready',
+          message: data.message || data.Message, duration: 7000,
+        });
+      },
     },
     {
-      event: 'BedStatusChanged',
-      handler: (data: any) => addToast({
-        type: 'info', title: '🛏 Bed Status Updated',
-        message: `Bed ${data.BedNumber} is now ${data.Status}`,
-      }),
+      event: 'NewNotification',
+      handler: () => fetchNotifications(),
     },
-  ], isAuthenticated);
+    {
+      event: 'ReceiveNotification',
+      handler: (data: any) => {
+        addToast({
+          type: data.type || data.Type || 'info',
+          title: data.title || data.Title || 'New Notification',
+          message: data.message || data.Message,
+        });
+        fetchNotifications();
+      },
+    }
+  ], [addToast, fetchNotifications]);
+
+  useSignalR(signalrEvents, isAuthenticated);
 
   return (
-    <NotificationContext.Provider value={{ toasts, addToast, removeToast, unreadCount }}>
+    <NotificationContext.Provider value={{ 
+      toasts, 
+      notifications, 
+      unreadCount, 
+      addToast, 
+      removeToast, 
+      markAsRead, 
+      markAllAsRead,
+      refreshNotifications: fetchNotifications 
+    }}>
       {children}
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
         {toasts.map(toast => <div key={toast.id} className="pointer-events-auto"><ToastItem toast={toast} onRemove={removeToast} /></div>)}

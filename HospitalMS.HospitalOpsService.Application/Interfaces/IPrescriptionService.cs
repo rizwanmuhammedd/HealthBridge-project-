@@ -6,8 +6,14 @@ namespace HospitalMS.HospitalOpsService.Application.Interfaces;
 
 public interface IPrescriptionService
 {
-    Task<PrescriptionResponseDto> CreateAsync(CreatePrescriptionDto dto);
+    Task<PrescriptionResponseDto> CreateAsync(int doctorId, CreatePrescriptionDto dto);
     Task<PrescriptionResponseDto> DispenseAsync(int prescriptionId, int pharmacistId);
     Task<List<PrescriptionResponseDto>> GetPendingAsync();
-    Task<List<PrescriptionResponseDto>> GetByPatientIdAsync(int patientId);
+    Task<List<PrescriptionResponseDto>> GetByPatientAsync(int patientId);
+    Task<List<PrescriptionResponseDto>> GetByDoctorAsync(int doctorId);
+    Task<PrescriptionResponseDto> PayAsync(int prescriptionId);
+    Task<PrescriptionResponseDto> PayMedicineAsync(int prescriptionId);
+    Task<PrescriptionResponseDto> DismissMedicinePaymentAsync(int prescriptionId);
+    Task<RazorpayOrderResponseDto> CreateRazorpayOrderAsync(int prescriptionId, bool isMedicine = false);
+    Task<bool> VerifyRazorpayPaymentAsync(RazorpayPaymentVerificationDto verificationDto);
 }

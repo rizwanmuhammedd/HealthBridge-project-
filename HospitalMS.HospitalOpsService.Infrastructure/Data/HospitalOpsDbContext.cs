@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 using HospitalMS.HospitalOpsService.Domain.Entities;
 using HospitalMS.HospitalOpsService.Domain.Interfaces;
 
-namespace HospitalMS.HospitalOpsService.Infrastructure.GeneratedModels;
+namespace HospitalMS.HospitalOpsService.Infrastructure.Data;
 
 public partial class HospitalOpsDbContext : DbContext
 {
-    private readonly ITenantProvider _tenant;
+    private readonly ITenantProvider? _tenant;
 
     public HospitalOpsDbContext()
     {
@@ -29,19 +29,23 @@ public partial class HospitalOpsDbContext : DbContext
 
     public virtual DbSet<PrescriptionItem> PrescriptionItems { get; set; }
 
+    public virtual DbSet<LabOrder> LabOrders { get; set; }
+
+    public virtual DbSet<LabTest> LabTests { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Bill>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Medicine>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<Prescription>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
-        modelBuilder.Entity<PrescriptionItem>().HasQueryFilter(e => e.TenantId == _tenant.TenantId);
+        modelBuilder.Entity<Bill>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Medicine>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<Prescription>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<PrescriptionItem>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<LabOrder>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
+        modelBuilder.Entity<LabTest>().HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
 
         modelBuilder.Entity<Bill>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Bills__3214EC070B0DB671");
-
-            entity.HasIndex(e => e.BillNumber, "IX_Bills_BillNumber").IsUnique();
-
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.BillNumber).IsUnique();
             entity.Property(e => e.BalanceAmount).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.BedCharge).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.BillNumber).HasMaxLength(30);
@@ -55,16 +59,13 @@ public partial class HospitalOpsDbContext : DbContext
             entity.Property(e => e.OtherCharges).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.PaidAmount).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.PaymentMethod).HasMaxLength(30);
-            entity.Property(e => e.PaymentStatus)
-                .HasMaxLength(20)
-                .HasDefaultValue("Pending");
+            entity.Property(e => e.PaymentStatus).HasMaxLength(20).HasDefaultValue("Pending");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(10, 2)");
         });
 
         modelBuilder.Entity<Medicine>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Medicine__3214EC07FBCA73A6");
-
+            entity.HasKey(e => e.Id);
             entity.Property(e => e.BatchNumber).HasMaxLength(50);
             entity.Property(e => e.Category).HasMaxLength(80);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
@@ -79,31 +80,49 @@ public partial class HospitalOpsDbContext : DbContext
 
         modelBuilder.Entity<Prescription>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Prescrip__3214EC07A26E7D11");
-
+            entity.HasKey(e => e.Id);
             entity.Property(e => e.Notes).HasMaxLength(500);
             entity.Property(e => e.PrescribedAt).HasDefaultValueSql("(getutcdate())");
-            entity.Property(e => e.Status)
-                .HasMaxLength(30)
-                .HasDefaultValue("Pending");
+            entity.Property(e => e.Status).HasMaxLength(30).HasDefaultValue("Pending");
         });
 
         modelBuilder.Entity<PrescriptionItem>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Prescrip__3214EC07EB27D3AD");
-
+            entity.HasKey(e => e.Id);
             entity.Property(e => e.Dosage).HasMaxLength(50);
             entity.Property(e => e.Frequency).HasMaxLength(100);
             entity.Property(e => e.Instructions).HasMaxLength(300);
 
             entity.HasOne(d => d.Medicine).WithMany(p => p.PrescriptionItems)
                 .HasForeignKey(d => d.MedicineId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PrescItems_Medicine");
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
             entity.HasOne(d => d.Prescription).WithMany(p => p.PrescriptionItems)
-                .HasForeignKey(d => d.PrescriptionId)
-                .HasConstraintName("FK_PrescItems_Prescription");
+                .HasForeignKey(d => d.PrescriptionId);
+        });
+
+        modelBuilder.Entity<LabOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.ResultValue).HasMaxLength(500);
+            entity.Property(e => e.ResultNotes).HasMaxLength(1000);
+            entity.Property(e => e.OrderedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.LabTest).WithMany(p => p.LabOrders)
+                .HasForeignKey(d => d.LabTestId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<LabTest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TestName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(100);
+            entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
+            entity.Property(e => e.SampleType).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
         });
 
         OnModelCreatingPartial(modelBuilder);

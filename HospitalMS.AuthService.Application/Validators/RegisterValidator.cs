@@ -25,9 +25,9 @@ public class RegisterValidator : AbstractValidator<RegisterRequestDto>
             .NotEmpty().WithMessage("Phone is required")
             .Length(10, 15).WithMessage("Phone must be 10-15 digits");
 
-        RuleFor(x => x.Role)
-            .NotEmpty()
-            .Must(r => new[] { "Patient", "Doctor", "Pharmacist", "LabTechnician", "Receptionist", "Admin" }.Contains(r))
-            .WithMessage("Invalid role");
+        RuleFor(x => x.DateOfBirth)
+            .NotEmpty().WithMessage("Date of birth is required");
+            
+        // Role is optional in the DTO now as it's hardcoded to 'Patient' in the service
     }
 }

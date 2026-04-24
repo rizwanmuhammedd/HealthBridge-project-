@@ -24,7 +24,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // GET api/appointments/5
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _svc.GetByIdAsync(id);
@@ -46,7 +46,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // GET api/appointments/doctor/3
-    [HttpGet("doctor/{doctorId}")]
+    [HttpGet("doctor/{doctorId:int}")]
     [Authorize(Roles = "Doctor,Admin")]
     public async Task<IActionResult> GetByDoctor(int doctorId)
     {
@@ -54,37 +54,34 @@ public class AppointmentsController : ControllerBase
         return Ok(list);
     }
 
+    // GET api/appointments/doctor/me — doctor sees own appointments securely
+    [HttpGet("doctor/me")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> GetByDoctorMe()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        int userId = int.Parse(userIdStr);
+        var list = await _svc.GetByDoctorUserIdAsync(userId);
+        return Ok(list);
+    }
+
     // GET api/appointments/slots/3?date=2024-04-05
-    [HttpGet("slots/{doctorId}")]
+    [HttpGet("slots/{doctorId:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetAvailableSlots(int doctorId, [FromQuery] string date)
     {
         if (!DateOnly.TryParse(date, out var d))
             return BadRequest(new { message = "Invalid date format. Use YYYY-MM-DD." });
 
-        var bookedTimes = await _svc.GetBookedTimesAsync(doctorId, d);
-
-        // Generate 30-min slots from 9:00 to 17:00
-        var allSlots = new List<string>();
-        var start = new TimeOnly(9, 0);
-        var end = new TimeOnly(17, 0);
-
-        while (start <= end)
-        {
-            allSlots.Add(start.ToString("HH:mm"));
-            start = start.AddMinutes(30);
-        }
-
-        var available = allSlots
-            .Where(s => !bookedTimes.Contains(s))
-            .ToList();
+        var available = await _svc.GetAvailableSlotsAsync(doctorId, d);
 
         return Ok(new { date = d, doctorId, availableSlots = available });
     }
 
-    // POST api/appointments — patient books
+    // POST api/appointments — everyone can book (patient for self, staff for others)
     [HttpPost]
-    [Authorize(Roles = "Patient,Receptionist")]
+    [Authorize(Roles = "Patient,Receptionist,Admin,Doctor,LabTechnician,Pharmacist")]
     public async Task<IActionResult> Book([FromBody] BookAppointmentDto dto)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -103,7 +100,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // PUT api/appointments/5 — doctor updates notes/status
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Doctor,Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateAppointmentDto dto)
     {
@@ -112,7 +109,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // DELETE api/appointments/5/cancel
-    [HttpDelete("{id}/cancel")]
+    [HttpDelete("{id:int}/cancel")]
     public async Task<IActionResult> Cancel(int id)
     {
         await _svc.CancelAsync(id);

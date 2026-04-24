@@ -8,7 +8,7 @@ namespace HospitalMS.PatientService.API.Controllers;
 
 [ApiController]
 [Route("api/admin")]
-[Authorize(Roles = "Admin")] // ALL routes — Admin only
+[Authorize] // Require authentication for all methods
 public class AdminController : ControllerBase
 {
     private readonly IDepartmentService _deptSvc;
@@ -22,23 +22,27 @@ public class AdminController : ControllerBase
 
     // ■■ DEPARTMENTS ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
     [HttpGet("departments")]
+    [Authorize(Roles = "Admin,Receptionist")]
     public async Task<IActionResult> GetDepts() => Ok(await _deptSvc.GetAllAsync());
 
     [HttpPost("departments")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateDept([FromBody] CreateDepartmentDto dto)
     {
         try { return Ok(await _deptSvc.CreateAsync(dto)); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
-    [HttpPut("departments/{id}")]
+    [HttpPut("departments/{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateDept(int id, [FromBody] CreateDepartmentDto dto)
     {
         try { return Ok(await _deptSvc.UpdateAsync(id, dto)); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
-    [HttpDelete("departments/{id}")]
+    [HttpDelete("departments/{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteDept(int id)
     {
         try { await _deptSvc.DeactivateAsync(id); return NoContent(); }
@@ -47,16 +51,19 @@ public class AdminController : ControllerBase
 
     // ■■ DOCTORS ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
     [HttpGet("doctors")]
+    [Authorize(Roles = "Admin,Receptionist")]
     public async Task<IActionResult> GetDoctors() => Ok(await _docSvc.GetAllAsync());
 
     [HttpPost("doctors")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateDoctor([FromBody] CreateDoctorDto dto)
     {
         try { return Ok(await _docSvc.CreateAsync(dto)); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
-    [HttpPut("doctors/{id}/availability")]
+    [HttpPut("doctors/{id:int}/availability")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ToggleAvailability(int id)
     {
         try { await _docSvc.ToggleAvailabilityAsync(id); return NoContent(); }
@@ -65,7 +72,8 @@ public class AdminController : ControllerBase
 
     // ■■ ADMIN STATS DASHBOARD ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
     [HttpGet("stats")]
-    public async Task<IActionResult> Stats([FromServices] IAppointmentService apptSvc)
+    [Authorize(Roles = "Admin,Patient,Receptionist,Doctor,LabTechnician,Pharmacist")]
+    public async Task<IActionResult> GetAdminStats([FromServices] IAppointmentService apptSvc)
     {
         var todayAppts = await apptSvc.GetAllAsync(); // Simplified for now
         var totalDoctors = await _docSvc.GetAllAsync();

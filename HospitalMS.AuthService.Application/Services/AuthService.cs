@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Google.Apis.Auth;
 
 namespace HospitalMS.AuthService.Application.Services;
 
@@ -15,11 +16,13 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepo;
     private readonly IConfiguration _config;
+    private readonly IEmailService _emailService;
 
-    public AuthService(IUserRepository userRepo, IConfiguration config)
+    public AuthService(IUserRepository userRepo, IConfiguration config, IEmailService emailService)
     {
         _userRepo = userRepo;
         _config = config;
+        _emailService = emailService;
     }
 
     public async Task<string> RegisterAsync(RegisterRequestDto dto)
@@ -34,11 +37,49 @@ public class AuthService : IAuthService
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = "Patient", // Always default to Patient for public registration
-            Phone = string.IsNullOrEmpty(dto.Phone) ? "0000000000" : dto.Phone
+            Phone = string.IsNullOrEmpty(dto.Phone) ? "0000000000" : dto.Phone,
+            DateOfBirth = dto.DateOfBirth,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            TenantId = 1 // Ensure tenant is set
         };
 
         await _userRepo.AddUserAsync(user);
         return "Registered successfully";
+    }
+
+    public async Task<User> CreateStaffAsync(RegisterRequestDto dto)
+    {
+        var existing = await _userRepo.GetByEmailAsync(dto.Email);
+        if (existing != null)
+            throw new Exception("Email already registered");
+
+        var user = new User
+        {
+            FullName = dto.FullName,
+            Email = dto.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = dto.Role ?? "Doctor", // Admin can specify the role
+            Phone = dto.Phone ?? "0000000000",
+            DateOfBirth = dto.DateOfBirth,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            TenantId = 1
+        };
+
+        await _userRepo.AddUserAsync(user);
+        return user;
+    }
+
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        return await _userRepo.GetAllAsync();
+    }
+
+    public async Task<List<User>> GetUsersByRoleAsync(string role)
+    {
+        var all = await _userRepo.GetAllAsync();
+        return all.Where(u => u.Role.Equals(role, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
@@ -47,7 +88,21 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid email or password");
 
+        // Robust Migration: If account is inactive but appears to be uninitialized (TenantId 0 or null UpdatedAt),
+        // it's an existing legacy account. Auto-activate it so the user isn't locked out.
+        if (user.IsActive == false && (user.UpdatedAt == null || user.TenantId == 0))
+        {
+            user.IsActive = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            if (user.TenantId == 0) user.TenantId = 1;
+            await _userRepo.UpdateAsync(user);
+        }
+
+        if (!user.IsActive)
+            throw new Exception("Your account has been deactivated. Please contact administration.");
+
         var response = BuildResponse(user);
+        user.UpdatedAt = DateTime.UtcNow;
         await _userRepo.UpdateAsync(user);
         return response;
     }
@@ -93,8 +148,23 @@ public class AuthService : IAuthService
         user.PasswordResetExpiry = expiry;
         await _userRepo.UpdateAsync(user);
 
-        // TODO: Send email with token
-        Console.WriteLine($"Password reset token for {dto.Email}: {token}");
+        var subject = "Password Reset Token - HealthBridge HMS";
+        var body = $@"
+            <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
+                <h2 style='color: #2563eb;'>HealthBridge HMS</h2>
+                <p>Hello {user.FullName},</p>
+                <p>You requested to reset your password. Please use the following 6-digit token to proceed:</p>
+                <div style='font-size: 24px; font-weight: bold; color: #1e293b; padding: 10px; background: #f1f5f9; border-radius: 5px; display: inline-block;'>
+                    {token}
+                </div>
+                <p style='margin-top: 20px; color: #64748b; font-size: 12px;'>
+                    This token is valid for 15 minutes. If you did not request this, please ignore this email.
+                </p>
+            </div>";
+
+        await _emailService.SendEmailAsync(user.Email, subject, body);
+
+        Console.WriteLine($"Password reset token for {dto.Email} sent via email.");
     }
 
     public async Task ResetPasswordAsync(ResetPasswordDto dto)
@@ -138,6 +208,60 @@ public class AuthService : IAuthService
         }
     }
 
+    public async Task DeactivateUserAsync(int userId)
+    {
+        var user = await _userRepo.GetByIdAsync(userId);
+        if (user != null)
+        {
+            user.IsActive = false;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(user);
+        }
+    }
+
+    public async Task RestoreUserAsync(int userId)
+    {
+        var user = await _userRepo.GetByIdAsync(userId);
+        if (user != null)
+        {
+            user.IsActive = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(user);
+        }
+    }
+
+    public async Task<AuthResponseDto> LoginWithGoogleAsync(GoogleLoginRequestDto dto)
+    {
+        var settings = new GoogleJsonWebSignature.ValidationSettings()
+        {
+            Audience = new List<string> { _config["GoogleSettings:ClientId"]! }
+        };
+
+        var payload = await GoogleJsonWebSignature.ValidateAsync(dto.TokenId, settings);
+        
+        var user = await _userRepo.GetByEmailAsync(payload.Email);
+        if (user == null)
+        {
+            // Auto-register if user doesn't exist
+            user = new User
+            {
+                FullName = payload.Name,
+                Email = payload.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()), // Random password
+                Role = "Patient",
+                Phone = "0000000000",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                TenantId = 1 // Default tenant
+            };
+            await _userRepo.AddUserAsync(user);
+        }
+
+        var response = BuildResponse(user);
+        await _userRepo.UpdateAsync(user);
+        return response;
+    }
+
     private AuthResponseDto BuildResponse(User user)
     {
         var token = GenerateJwtToken(user);
@@ -154,6 +278,8 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Email = user.Email,
             Role = user.Role,
+            DateOfBirth = user.DateOfBirth,
+            ProfileImageUrl = user.ProfileImageUrl,
             TenantId = user.TenantId,
             Token = token,
             RefreshToken = refresh,

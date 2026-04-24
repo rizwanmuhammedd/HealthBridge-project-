@@ -1,6 +1,60 @@
+// import { useEffect, useRef, useCallback } from 'react';
+// import * as signalR from '@microsoft/signalr';
+
+// const HUB_URL = 'http://localhost:5004/hubs/hospital';
+
+// export interface SignalREvent {
+//   event: string;
+//   handler: (...args: unknown[]) => void;
+// }
+
+// export const useSignalR = (events: SignalREvent[], enabled = true) => {
+//   const connectionRef = useRef<signalR.HubConnection | null>(null);
+
+//   const connect = useCallback(async () => {
+//     const token = localStorage.getItem('hms_token');
+//     if (!token || !enabled) return;
+
+//     const connection = new signalR.HubConnectionBuilder()
+//       .withUrl(`${HUB_URL}?access_token=${token}`, {
+//         transport: signalR.HttpTransportType.WebSockets,
+//         skipNegotiation: true,
+//       })
+//       .withAutomaticReconnect([0, 2000, 5000, 10000])
+//       .configureLogging(signalR.LogLevel.Warning)
+//       .build();
+
+//     events.forEach(({ event, handler }) => {
+//       connection.on(event, handler);
+//     });
+
+//     try {
+//       await connection.start();
+//       connectionRef.current = connection;
+//     } catch (err) {
+//       console.warn('SignalR connection failed:', err);
+//     }
+//   }, [enabled]);
+
+//   useEffect(() => {
+//     connect();
+//     return () => {
+//       if (connectionRef.current) connectionRef.current.stop();
+//     };
+//   }, [connect]);
+
+//   return connectionRef;
+// };
+
+
+
+
+
+// src/hooks/useSignalR.ts
 import { useEffect, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 
+// Direct link to Notification Service to avoid Ocelot WebSocket issues
 const HUB_URL = 'http://localhost:5004/hubs/hospital';
 
 export interface SignalREvent {
@@ -10,38 +64,56 @@ export interface SignalREvent {
 
 export const useSignalR = (events: SignalREvent[], enabled = true) => {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const eventsRef = useRef(events);
+
+  // Update eventsRef when events change
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
 
   const connect = useCallback(async () => {
     const token = localStorage.getItem('hms_token');
-    if (!token || !enabled) return;
+    if (!token || !enabled || connectionRef.current) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${HUB_URL}?access_token=${token}`, {
+      .withUrl(HUB_URL, {
+        accessTokenFactory: () => token,
         transport: signalR.HttpTransportType.WebSockets,
-        skipNegotiation: true,
+        skipNegotiation: true
       })
-      .withAutomaticReconnect([0, 2000, 5000, 10000])
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    events.forEach(({ event, handler }) => {
-      connection.on(event, handler);
+    // Bind events using a proxy handler that always uses the latest eventsRef
+    eventsRef.current.forEach(({ event }) => {
+      connection.on(event, (...args: any[]) => {
+        const currentEvent = eventsRef.current.find(e => e.event === event);
+        if (currentEvent) currentEvent.handler(...args);
+      });
     });
 
     try {
       await connection.start();
+      console.log('SignalR connected successfully');
       connectionRef.current = connection;
     } catch (err) {
       console.warn('SignalR connection failed:', err);
+      setTimeout(() => connect(), 5000);
     }
   }, [enabled]);
 
   useEffect(() => {
-    connect();
+    if (enabled) {
+      connect();
+    }
     return () => {
-      if (connectionRef.current) connectionRef.current.stop();
+      if (connectionRef.current) {
+        connectionRef.current.stop();
+        connectionRef.current = null;
+      }
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   return connectionRef;
 };

@@ -1,7 +1,9 @@
+// HospitalMS.HospitalOpsService.Domain/Entities/Medicine.cs
 using System;
 using System.Collections.Generic;
 
-using HospitalMS.HospitalOpsService.Domain.Entities;
+namespace HospitalMS.HospitalOpsService.Domain.Entities;
+
 public partial class Medicine
 {
     public int Id { get; set; }

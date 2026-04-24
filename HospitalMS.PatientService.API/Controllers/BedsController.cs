@@ -17,17 +17,18 @@ public class BedsController : ControllerBase
         => Ok(await _svc.GetAllAsync());
 
     [HttpGet("available")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetAvailable()
         => Ok(await _svc.GetAvailableAsync());
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _svc.GetByIdAsync(id);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPatch("{id}/status")]
+    [HttpPatch("{id:int}/status")]
     [Authorize(Roles = "Admin,Receptionist")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {

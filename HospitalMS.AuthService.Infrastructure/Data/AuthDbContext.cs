@@ -9,7 +9,7 @@ namespace HospitalMS.AuthService.Infrastructure.Data;
 
 public partial class AuthDbContext : DbContext
 {
-    private readonly ITenantProvider _tenant;
+    private readonly ITenantProvider? _tenant;
 
     public AuthDbContext()
     {
@@ -38,7 +38,7 @@ public partial class AuthDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Users__3214EC07B246A652");
 
-            entity.HasQueryFilter(e => e.TenantId == _tenant.TenantId);
+            entity.HasQueryFilter(e => e.TenantId == _tenant!.TenantId);
 
             entity.HasIndex(e => e.Email, "IX_Users_Email").IsUnique();
 

@@ -1,12 +1,11 @@
+using HospitalMS.HospitalOpsService.Application.DTOs;
 using HospitalMS.HospitalOpsService.Application.Interfaces;
-using HospitalMS.HospitalOpsService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 namespace HospitalMS.HospitalOpsService.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/medicines")]
 [Authorize]
 public class MedicinesController : ControllerBase
 {
@@ -17,6 +16,13 @@ public class MedicinesController : ControllerBase
     public async Task<IActionResult> GetAll()
         => Ok(await _svc.GetAllAsync());
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var m = await _svc.GetByIdAsync(id);
+        return m == null ? NotFound() : Ok(m);
+    }
+
     [HttpGet("low-stock")]
     [Authorize(Roles = "Admin,Pharmacist")]
     public async Task<IActionResult> GetLowStock()
@@ -24,17 +30,17 @@ public class MedicinesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,Pharmacist")]
-    public async Task<IActionResult> Add([FromBody] Medicine medicine)
+    public async Task<IActionResult> Create([FromBody] CreateMedicineDto dto)
     {
-        var result = await _svc.AddAsync(medicine);
-        return CreatedAtAction(nameof(GetAll), result);
+        try { return Ok(await _svc.CreateAsync(dto)); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpPatch("{id}/stock")]
     [Authorize(Roles = "Admin,Pharmacist")]
-    public async Task<IActionResult> UpdateStock(int id, [FromBody] int newQty)
+    public async Task<IActionResult> UpdateStock(int id, [FromBody] UpdateStockDto dto)
     {
-        await _svc.UpdateStockAsync(id, newQty);
-        return NoContent();
+        try { await _svc.UpdateStockAsync(id, dto.NewQuantity); return NoContent(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 }

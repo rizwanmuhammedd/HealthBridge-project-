@@ -19,7 +19,7 @@ public class LabController : ControllerBase
     public async Task<IActionResult> GetPending()
         => Ok(await _svc.GetPendingAsync());
 
-    [HttpGet("patient/{patientId}")]
+    [HttpGet("patient/{patientId:int}")]
     public async Task<IActionResult> GetByPatient(int patientId)
         => Ok(await _svc.GetByPatientAsync(patientId));
 
@@ -35,7 +35,7 @@ public class LabController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPatch("{id}/result")]
+    [HttpPatch("{id:int}/result")]
     [Authorize(Roles = "LabTechnician")]
     public async Task<IActionResult> UploadResult(int id, [FromBody] UploadLabResultDto dto)
     {

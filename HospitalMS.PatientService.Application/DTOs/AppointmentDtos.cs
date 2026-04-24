@@ -4,6 +4,9 @@ namespace HospitalMS.PatientService.Application.DTOs;
 public class BookAppointmentDto
 {
     public int DoctorId { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public string? PatientPhone { get; set; }
+    public int PatientAge { get; set; }
     public DateOnly AppointmentDate { get; set; }
     public TimeOnly AppointmentTime { get; set; }
     public string? ChiefComplaint { get; set; }
@@ -14,6 +17,9 @@ public class AppointmentResponseDto
 {
     public int Id { get; set; }
     public int PatientId { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public string? PatientPhone { get; set; }
+    public int PatientAge { get; set; }
     public string DoctorName { get; set; } = string.Empty;
     public string DepartmentName { get; set; } = string.Empty;
     public DateOnly AppointmentDate { get; set; }

@@ -9,6 +9,7 @@ public interface IAppointmentRepository
     Task<List<Appointment>> GetByPatientIdAsync(int patientId);
     Task<List<Appointment>> GetByDoctorIdAsync(int doctorId);
     Task<List<Appointment>> GetByDateAsync(DateOnly date);
+    Task<List<Appointment>> GetByDoctorAndDateAsync(int doctorId, DateOnly date);
     Task<int> GetNextTokenAsync(int doctorId, DateOnly date); // auto-assign token
     Task<Appointment> AddAsync(Appointment appointment);
     Task UpdateAsync(Appointment appointment);

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using HospitalMS.AuthService.Application.Interfaces;
 using HospitalMS.AuthService.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace HospitalMS.AuthService.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IImageService _imageService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IImageService imageService)
     {
         _authService = authService;
+        _imageService = imageService;
     }
 
     [HttpPost("register")]
@@ -25,6 +28,59 @@ public class AuthController : ControllerBase
         return Ok(new { message = result });
     }
 
+    [HttpPost("create-staff")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateStaff([FromBody] RegisterRequestDto dto)
+    {
+        try
+        {
+            var user = await _authService.CreateStaffAsync(dto);
+            return Ok(new { 
+                id = user.Id, 
+                email = user.Email, 
+                fullName = user.FullName,
+                role = user.Role
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("users")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetUsers()
+    {
+        var users = await _authService.GetAllUsersAsync();
+        return Ok(users);
+    }
+
+    [HttpDelete("users/{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeactivateUser(int id)
+    {
+        await _authService.DeactivateUserAsync(id);
+        return NoContent();
+    }
+
+    [HttpPost("users/{id}/restore")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RestoreUser(int id)
+    {
+        await _authService.RestoreUserAsync(id);
+        return NoContent();
+    }
+
+    [HttpGet("users/role/{role}")]
+    [AllowAnonymous] // Internal use
+    public async Task<IActionResult> GetUsersByRole(string role)
+    {
+        var users = await _authService.GetUsersByRoleAsync(role);
+        // Only return users who are explicitly Active
+        return Ok(users.Where(u => u.IsActive).ToList());
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
@@ -32,6 +88,21 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(dto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("google-login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto dto)
+    {
+        try
+        {
+            var result = await _authService.LoginWithGoogleAsync(dto);
             return Ok(result);
         }
         catch (Exception ex)
@@ -108,13 +179,21 @@ public class AuthController : ControllerBase
         }
     }
 
+    public class ProfilePictureUploadRequest
+    {
+        public IFormFile File { get; set; } = null!;
+        public bool UpdateProfile { get; set; } = false;
+    }
+
     [HttpPost("upload-picture")]
     [Authorize]
-    public async Task<IActionResult> UploadProfilePicture(IFormFile file)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadProfilePicture([FromForm] ProfilePictureUploadRequest request)
     {
-        if (file == null || file.Length == 0)
+        if (request == null || request.File == null || request.File.Length == 0)
             return BadRequest(new { message = "No file uploaded" });
 
+        var file = request.File;
         var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png" };
         if (!allowedTypes.Contains(file.ContentType.ToLower()))
             return BadRequest(new { message = "Only JPG and PNG files are allowed" });
@@ -126,20 +205,42 @@ public class AuthController : ControllerBase
         if (userIdStr == null) return Unauthorized();
         var userId = int.Parse(userIdStr);
 
-        var ext = Path.GetExtension(file.FileName);
-        var fileName = $"profile_{userId}_{DateTime.UtcNow.Ticks}{ext}";
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-        Directory.CreateDirectory(uploadsDir);
-
-        var filePath = Path.Combine(uploadsDir, fileName);
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        try
         {
-            await file.CopyToAsync(stream);
+            var imageUrl = await _imageService.UploadImageAsync(file, "profile_pictures");
+            if (string.IsNullOrEmpty(imageUrl))
+                return BadRequest(new { message = "Failed to upload image to Cloudinary" });
+
+            if (request.UpdateProfile)
+            {
+                await _authService.UpdateProfileImageAsync(userId, imageUrl);
+            }
+            
+            return Ok(new { imageUrl });
         }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
-        var imageUrl = $"/uploads/{fileName}";
-        await _authService.UpdateProfileImageAsync(userId, imageUrl);
+    [HttpPatch("users/{userId:int}/profile-picture")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateUserProfilePicture(int userId, [FromBody] UpdateProfilePictureDto dto)
+    {
+        try
+        {
+            await _authService.UpdateProfileImageAsync(userId, dto.ImageUrl);
+            return Ok(new { imageUrl = dto.ImageUrl });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
-        return Ok(new { imageUrl });
+    public class UpdateProfilePictureDto
+    {
+        public string ImageUrl { get; set; } = string.Empty;
     }
 }
