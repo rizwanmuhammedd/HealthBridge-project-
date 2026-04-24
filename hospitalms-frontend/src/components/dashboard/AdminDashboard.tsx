@@ -275,13 +275,13 @@ const AdminDashboard: React.FC = () => {
 
         <Card title="Facility Overview">
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-               <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Available Beds</p>
-               <h3 className="text-2xl font-bold text-emerald-700">{beds.filter(b => b.status === 'Available').length}</h3>
+            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 text-center">
+               <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Available</p>
+               <h3 className="text-2xl font-bold text-emerald-700">{beds.filter(b => (b.status || '').toLowerCase() === 'available').length}</h3>
             </div>
             <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 text-center">
                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Occupied</p>
-               <h3 className="text-2xl font-bold text-zinc-700">{beds.filter(b => b.status === 'Occupied').length}</h3>
+               <h3 className="text-2xl font-bold text-zinc-700">{beds.filter(b => (b.status || '').toLowerCase() === 'occupied').length}</h3>
             </div>
           </div>
         </Card>

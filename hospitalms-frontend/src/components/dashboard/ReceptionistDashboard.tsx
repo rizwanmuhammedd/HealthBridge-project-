@@ -32,7 +32,7 @@ export const ReceptionistDashboard = () => {
     });
     const [payForm, setPayForm] = useState({ amount: 0, method: 'Cash' });
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const [apptRes, billRes, prescRes, docRes, bedRes, admRes] = await Promise.all([
                 appointmentApi.getAll(),
@@ -42,17 +42,22 @@ export const ReceptionistDashboard = () => {
                 bedApi.getAll(),
                 api.get('/api/admissions')
             ]);
-            setAppointments(apptRes.data);
+            setAppointments(apptRes.data || []);
             setBills(billRes.data || []);
             setPrescriptions(prescRes.data || []);
             setDoctors(docRes.data || []);
             setBeds(bedRes.data || []);
             setActiveAdmissions(admRes.data || []);
-        } catch { }
-        finally { setLoading(false); }
-    };
+        } catch (err) {
+            console.error("Receptionist Data Load Failed", err);
+        } finally { 
+            setLoading(false); 
+        }
+    }, [addToast]);
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => { 
+        loadData(); 
+    }, [loadData, location.pathname]);
 
     const handleUpdateBedStatus = async (status: string) => {
         if (!selectedBed) return;
@@ -76,15 +81,15 @@ export const ReceptionistDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <Card className="p-4 border-none shadow-sm bg-emerald-50">
                         <p className="text-[10px] font-bold text-emerald-600 uppercase">Available Beds</p>
-                        <p className="text-xl font-black text-emerald-700">{beds.filter(b => b.status === 'Available').length}</p>
+                        <p className="text-xl font-black text-emerald-700">{beds.filter(b => (b.status || '').toLowerCase() === 'available').length}</p>
                     </Card>
                     <Card className="p-4 border-none shadow-sm bg-red-50">
                         <p className="text-[10px] font-bold text-red-600 uppercase">Occupied Beds</p>
-                        <p className="text-xl font-black text-red-700">{beds.filter(b => b.status === 'Occupied').length}</p>
+                        <p className="text-xl font-black text-red-700">{beds.filter(b => (b.status || '').toLowerCase() === 'occupied').length}</p>
                     </Card>
                     <Card className="p-4 border-none shadow-sm bg-orange-50">
                         <p className="text-[10px] font-bold text-orange-600 uppercase">Under Cleaning</p>
-                        <p className="text-xl font-black text-orange-700">{beds.filter(b => b.status === 'UnderCleaning').length}</p>
+                        <p className="text-xl font-black text-orange-700">{beds.filter(b => (b.status || '').toLowerCase() === 'undercleaning').length}</p>
                     </Card>
                     <Card className="p-4 border-none shadow-sm bg-zinc-50">
                         <p className="text-[10px] font-bold text-zinc-400 uppercase">Total Capacity</p>
@@ -292,11 +297,11 @@ export const ReceptionistDashboard = () => {
                 </Card>
                 <Card className="p-6 border-none shadow-sm bg-white">
                     <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mb-1">Available Beds</p>
-                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => b.status === 'Available').length}</h3>
+                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => (b.status || '').toLowerCase() === 'available').length}</h3>
                 </Card>
                 <Card className="p-6 border-none shadow-sm bg-white">
                     <p className="text-[11px] font-bold text-orange-600 uppercase tracking-widest mb-1">Active Admissions</p>
-                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => b.status === 'Occupied').length}</h3>
+                    <h3 className="text-2xl font-bold text-zinc-900">{beds.filter(b => (b.status || '').toLowerCase() === 'occupied').length}</h3>
                 </Card>
             </div>
 

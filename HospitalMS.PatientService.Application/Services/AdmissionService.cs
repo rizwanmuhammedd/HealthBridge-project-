@@ -38,7 +38,7 @@ public class AdmissionService : IAdmissionService
             throw new Exception("Patient is already admitted.");
             
         var availableBeds = await _bedRepo.GetAvailableAsync();
-        var bed = availableBeds.FirstOrDefault(b => b.WardType == dto.WardType);
+        var bed = availableBeds.FirstOrDefault(b => string.Equals(b.WardType, dto.WardType, StringComparison.OrdinalIgnoreCase));
         if (bed == null)
             throw new Exception("No available bed in " + dto.WardType + " ward.");
             
