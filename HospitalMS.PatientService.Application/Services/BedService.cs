@@ -41,8 +41,8 @@ public class BedService : IBedService
         {
             BedNumber = dto.BedNumber,
             WardType = dto.WardType,
-            Status = "Available",
-            TenantId = 1 // Default for now
+            Status = "Available"
+            // TenantId will be set automatically by DbContext SaveChangesAsync
         };
         var saved = await _repository.AddAsync(bed);
         return Map(saved);

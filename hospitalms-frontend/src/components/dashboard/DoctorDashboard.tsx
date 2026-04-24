@@ -534,9 +534,8 @@ const DoctorDashboard: React.FC = () => {
             onChange={(e: any) => setAdmitForm({ ...admitForm, wardType: e.target.value })}
             options={[
                 { value: 'General', label: 'General Ward' },
-                { value: 'Semi-Private', label: 'Semi-Private' },
-                { value: 'Private', label: 'Private Suite' },
-                { value: 'ICU', label: 'Intensive Care Unit' }
+                { value: 'ICU', label: 'Intensive Care Unit (ICU)' },
+                { value: 'Private', label: 'Private Premium Suite' }
             ]}
           />
           <Input 
